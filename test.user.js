@@ -6,7 +6,9 @@
 // @match        https://studio.youtube.com/*
 // @run-at       document-idle
 // @grant        none
+// @require      https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js
 // ==/UserScript==
+
 
 (() => {
   'use strict';
@@ -28,7 +30,7 @@
   min-height:var(--ysu-minh); line-height:1; font-size:var(--ysu-fs); font-weight:700;
   cursor:pointer; box-shadow:var(--ysu-shadow); letter-spacing:.02em; opacity:.96;
   transition:transform .12s ease, opacity .12s ease; user-select:none;
-  background:#2962ff; color:#fff;
+  background:#43a047; color:#fff;
 }
 #${INLINE_BTN_ID}{ margin-left:10px; }
 #${INLINE_BTN_ID}:hover, #${FIXED_BTN_ID}:hover{ opacity:1; transform:translateY(-1px); }
@@ -82,39 +84,144 @@
     return cand ? (cand.closest?.('ytcp-button') || cand) : null;
   }
 
+  /** .wfpファイルからタイムスタンプ・ファイル名抽出 */
+  async function extractWfpTimestampsAndNames(file) {
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const zip = await JSZip.loadAsync(arrayBuffer);
+      // timeline.wesprojをサブフォルダも含めて探す
+      let wesprojFile = null;
+      zip.forEach((relativePath, zipEntry) => {
+        if (relativePath.endsWith('timeline.wesproj')) {
+          wesprojFile = zipEntry;
+        }
+      });
+
+      if (!wesprojFile) return {error: 'timeline.wesprojが見つかりません'};
+      const wesprojText = await wesprojFile.async('text');
+      const wesprojJson = JSON.parse(wesprojText);
+      // extractKeysで.mp3/.wav抽出
+      const found = [];
+      if (typeof extractKeys === 'function') {
+        extractKeys(wesprojJson, found);
+      }
+      // tlBeginで昇順ソート
+      found.sort((a, b) => a.tlBegin - b.tlBegin);
+      return {data: found};
+    } catch (err) {
+      return {error: 'wfp解析エラー'};
+    }
+  }
+
+    /** ファイルパスから拡張子なしのベース名を取得 */
+  function getBaseNameWithoutExt(path) {
+    const base = path.split('/').pop().split('\\').pop();
+    return base.replace(/\.[^/.]+$/, '');
+  }
+
+  /** wfp抽出結果を説明欄用に整形 */
+  function formatWfpResultLines(data) {
+    return data.map(x => `${formatNanoToTime(x.tlBegin)} ${getBaseNameWithoutExt(x.filename)}`).join('\n');
+  }
+
+  /** 説明欄にテキストを書き込む */
+  function writeDescription(descInput, lines) {
+    // 既存の説明欄内容を保持し、末尾に追記
+    const current = descInput.innerText.trim();
+    const newText = current ? (current + '\n' + lines) : lines;
+    descInput.innerText = newText;
+    descInput.dispatchEvent(new Event('input', {bubbles:true}));
+  }
+
+  /** ファイル選択時の処理 */
+  async function handleFileInputChange(e, fileInput) {
+    const file = e.target.files[0];
+    if (!file) {
+      document.body.removeChild(fileInput);
+      return;
+    }
+    const descInput = Array.from(document.querySelectorAll('div#textbox[contenteditable="true"]'))
+      .find(el => el.getAttribute('aria-label')?.includes('視聴者に向けて動画の内容を紹介しましょう'));
+    if (file.name.endsWith('.wfp')) {
+      const result = await extractWfpTimestampsAndNames(file);
+      if (descInput) {
+        if (result.data && result.data.length > 0) {
+          toast('✅ ' + result.data.length + '件抽出しました');
+          toast('data構造: ' + result.data.map(x => JSON.stringify(x)).join(', '));
+          try {
+            const lines = formatWfpResultLines(result.data);
+            writeDescription(descInput, lines);
+            toast('✅ 説明欄に抽出結果を書き込みました');
+          } catch (err) {
+            toast('❌ map処理でエラー: ' + err);
+          }
+        } else {
+          toast('ℹ️ wfp抽出結果がありません');
+        }
+      } else {
+        toast('ℹ️ 説明欄が見つかりません');
+      }
+    } else {
+      toast('ℹ️ ファイルの形式が異なります');
+    }
+    document.body.removeChild(fileInput);
+  }
+
+  /**
+   * 100ns単位の値を hh:mm:ss 形式に変換
+   */
+  function formatNanoToTime(nano) {
+    const sec = Math.floor(nano / 10000000);
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = sec % 60;
+    return [h, m, s].map(v => v.toString().padStart(2, '0')).join(':');
+  }
+
+  /** wfp抽出結果をトースト表示 */
+  function showWfpToast(result) {
+    if (result.error) {
+      toast('⚠️ ' + result.error);
+      return;
+    }
+    const outText = result.data.map(x => `${x.tlBegin} ${x.filename}`).join('\n');
+    toast('🗂️ wfp抽出結果:\n' + outText.slice(0, 200));
+  }
+
   /** ボタンクリック時の処理（自由に書き換え） */
   async function onCustomButtonClick(){
     try {
-      // ファイル選択と読み込み
       const fileInput = document.createElement('input');
       fileInput.type = 'file';
       fileInput.style.display = 'none';
       document.body.appendChild(fileInput);
-      fileInput.addEventListener('change', async (e) => {
-        const file = e.target.files[0];
-        if (!file) {
-          document.body.removeChild(fileInput);
-          return;
-        }
-        const text = await file.text();
-        toast('📄 ファイル内容: ' + text.slice(0, 100)); // 先頭100文字表示
-        // ファイル読込後に説明欄書き換え（ファイル内容をそのままセット）
-        const descInput = Array.from(document.querySelectorAll('div#textbox[contenteditable="true"]'))
-          .find(el => el.getAttribute('aria-label')?.includes('視聴者に向けて動画の内容を紹介しましょう'));
-        if (descInput) {
-          descInput.textContent = text;
-          descInput.dispatchEvent(new Event('input', {bubbles:true}));
-          toast('✅ 説明欄にファイル内容を書き込みました');
-        } else {
-          toast('ℹ️ 説明欄が見つかりません');
-        }
-        document.body.removeChild(fileInput);
-      }, {once:true});
+      fileInput.addEventListener('change', e => handleFileInputChange(e, fileInput), {once:true});
       fileInput.click();
     } catch(e) {
       console.error(e);
       toast('⚠️ エラーが発生しました（詳細はConsole）');
     }
+  }
+
+  function extractKeys(obj, result) {
+    if (obj == null || typeof obj !== 'object') return;
+
+    const hasFilename = ('filename' in obj);
+    const hasBegin = ('tlBegin' in obj);
+
+    if (hasFilename && hasBegin) {
+        // filenameが.mp3または.wavで終わる場合のみ抽出
+        if (typeof obj.filename === 'string' &&
+            (obj.filename.toLowerCase().endsWith('.mp3') || obj.filename.toLowerCase().endsWith('.wav'))
+        ) {
+            result.push({
+                filename: obj.filename,
+                tlBegin: obj.tlBegin
+            });
+        }
+    }
+    // 再帰
+    for (const k in obj) extractKeys(obj[k], result);
   }
 
   /** トースト */
