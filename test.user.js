@@ -126,18 +126,18 @@
 
   /** 説明欄にテキストを書き込む */
   function writeDescription(descInput, lines) {
-    // 既存の説明欄内容を保持し、末尾に追記
-    const current = descInput.innerText.trim();
-    const newText = current ? (current + '\n' + lines) : lines;
-    descInput.innerText = newText;
-    descInput.dispatchEvent(new Event('input', {bubbles:true}));
+  // 既存の説明欄内容を保持し、末尾に追記
+  const current = descInput.innerText.trim();
+  const newText = current ? (current + '\n' + lines) : lines;
+  descInput.innerText = newText;
+  descInput.dispatchEvent(new Event('input', {bubbles:true}));
   }
 
   /** ファイル選択時の処理 */
   async function handleFileInputChange(e, fileInput) {
     const file = e.target.files[0];
     if (!file) {
-      document.body.removeChild(fileInput);
+      fileInput.remove();
       return;
     }
     const descInput = Array.from(document.querySelectorAll('div#textbox[contenteditable="true"]'))
@@ -164,7 +164,7 @@
     } else {
       toast('ℹ️ ファイルの形式が異なります');
     }
-    document.body.removeChild(fileInput);
+  fileInput.remove();
   }
 
   /**
@@ -195,7 +195,7 @@
       fileInput.type = 'file';
       fileInput.style.display = 'none';
       document.body.appendChild(fileInput);
-      fileInput.addEventListener('change', e => handleFileInputChange(e, fileInput), {once:true});
+      fileInput.addEventListener('change', function(e){ handleFileInputChange(e, fileInput); }, {once:true});
       fileInput.click();
     } catch(e) {
       console.error(e);
@@ -315,8 +315,10 @@
   /** ファイル読み込みボタン設置と処理 */
 
   function init(){
-    // 初期設置
-    ensureInlineButton();
+    // 初期設置（失敗時は必ず固定ボタン表示）
+    if (!ensureInlineButton()) {
+      ensureFixedButton(true);
+    }
 
     // DOM変化監視
     const mo = new MutationObserver(()=> heal());
@@ -343,6 +345,7 @@
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init, {once:true});
+    window.addEventListener('load', init, {once:true});
   } else {
     init();
   }
