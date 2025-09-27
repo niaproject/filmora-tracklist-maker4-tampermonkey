@@ -313,7 +313,6 @@
   }
 
   /** ファイル読み込みボタン設置と処理 */
-
   function init(){
     // 初期設置（失敗時は必ず固定ボタン表示）
     if (!ensureInlineButton()) {
