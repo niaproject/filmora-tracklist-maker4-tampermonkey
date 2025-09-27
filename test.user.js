@@ -84,20 +84,34 @@
 
   /** ボタンクリック時の処理（自由に書き換え） */
   async function onCustomButtonClick(){
-    try{
-      // 例：タイトル入力欄を取得して末尾にタグを追記
-      const titleBox = deepQueryAll('ytcp-social-suggestions-textbox, ytcp-form-input-container')
-        .find(el => /title/i.test(el?.getAttribute?.('id') || '') || el.querySelector?.('#title-textarea, #text-input'));
-      const input = titleBox?.querySelector?.('#title-textarea, #text-input') || titleBox?.shadowRoot?.querySelector?.('#title-textarea, #text-input');
-      if (input) {
-        const v = input.value || '';
-        input.value = v.replace(/\s+$/, '') + (v ? ' ' : '') + '#TracklistReady';
-        input.dispatchEvent(new Event('input', {bubbles:true}));
-        toast('✅ タイトルにタグを追記しました');
-      } else {
-        toast('ℹ️ アクション実行：カスタム処理を追加してください');
-      }
-    }catch(e){
+    try {
+      // ファイル選択と読み込み
+      const fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.style.display = 'none';
+      document.body.appendChild(fileInput);
+      fileInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) {
+          document.body.removeChild(fileInput);
+          return;
+        }
+        const text = await file.text();
+        toast('📄 ファイル内容: ' + text.slice(0, 100)); // 先頭100文字表示
+        // ファイル読込後に説明欄書き換え（ファイル内容をそのままセット）
+        const descInput = Array.from(document.querySelectorAll('div#textbox[contenteditable="true"]'))
+          .find(el => el.getAttribute('aria-label')?.includes('視聴者に向けて動画の内容を紹介しましょう'));
+        if (descInput) {
+          descInput.textContent = text;
+          descInput.dispatchEvent(new Event('input', {bubbles:true}));
+          toast('✅ 説明欄にファイル内容を書き込みました');
+        } else {
+          toast('ℹ️ 説明欄が見つかりません');
+        }
+        document.body.removeChild(fileInput);
+      }, {once:true});
+      fileInput.click();
+    } catch(e) {
       console.error(e);
       toast('⚠️ エラーが発生しました（詳細はConsole）');
     }
@@ -167,7 +181,7 @@
 
     // インラインボタン作成
     const btn = document.createElement('button');
-    btn.id = INLINE_BTN_ID; btn.type = 'button'; btn.textContent = 'Custom Action';
+    btn.id = INLINE_BTN_ID; btn.type = 'button'; btn.textContent = 'Filmoraファイル選択';
     btn.addEventListener('click', onCustomButtonClick);
 
     try{
@@ -190,6 +204,8 @@
     }
     ensureInlineButton();
   }
+
+  /** ファイル読み込みボタン設置と処理 */
 
   function init(){
     // 初期設置
