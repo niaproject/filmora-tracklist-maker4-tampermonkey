@@ -1,14 +1,13 @@
 // ==UserScript==
-// @name         YouTube Studio Uploader: Custom Button
-// @namespace    your-namespace
-// @version      0.1.0
-// @description  YouTube Studioの動画アップロード画面にカスタムボタン（インライン/固定）を追加
+// @name         YouTube Studio Filmora Audio Tracklist Maker
+// @namespace    niaproject
+// @version      1.0.0
+// @description  Filmora (.wfp) から音声クリップの開始時刻とファイル名を抽出し、YouTube Studio の説明欄へ自動整形して挿入します。
 // @match        https://studio.youtube.com/*
 // @run-at       document-idle
 // @grant        none
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js
 // ==/UserScript==
-
 
 (() => {
   'use strict';
@@ -194,6 +193,7 @@
       const fileInput = document.createElement('input');
       fileInput.type = 'file';
       fileInput.style.display = 'none';
+      fileInput.accept = '.wfp'; // .wfpのみ選択可能
       document.body.appendChild(fileInput);
       fileInput.addEventListener('change', function(e){ handleFileInputChange(e, fileInput); }, {once:true});
       fileInput.click();
