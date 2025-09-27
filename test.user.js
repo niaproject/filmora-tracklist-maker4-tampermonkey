@@ -22,7 +22,16 @@
   --ysu-btn-py:8px; --ysu-btn-px:12px; --ysu-fs:13px; --ysu-r:10px; --ysu-minh:36px;
   --ysu-shadow:0 4px 16px rgba(0,0,0,.18);
 }
-#${INLINE_BTN_ID}, #${FIXED_BTN_ID}{
+#${INLINE_BTN_ID}{
+  display:inline-flex; align-items:center; gap:.5em;
+  padding:var(--ysu-btn-py) var(--ysu-btn-px);
+  border-radius:var(--ysu-r); border:1px solid rgba(0,0,0,.12);
+  min-height:var(--ysu-minh); line-height:1; font-size:var(--ysu-fs); font-weight:700;
+  cursor:pointer; box-shadow:var(--ysu-shadow); letter-spacing:.02em; opacity:.96;
+  transition:transform .12s ease, opacity .12s ease; user-select:none;
+  background:#1976d2; color:#fff;
+}
+#${FIXED_BTN_ID}{
   display:inline-flex; align-items:center; gap:.5em;
   padding:var(--ysu-btn-py) var(--ysu-btn-px);
   border-radius:var(--ysu-r); border:1px solid rgba(0,0,0,.12);
