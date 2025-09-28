@@ -46,7 +46,6 @@
 #${FIXED_BTN_ID}{ position:fixed; right:16px; bottom:16px; z-index:2147483647; }
   `);
 
-  /** Utils (Shadow DOM 横断) */
   const isVisible = (el) => {
     const r = el?.getBoundingClientRect?.();
     return !!r && r.width > 0 && r.height > 0;
@@ -67,38 +66,31 @@
     return texts.includes(t) && isVisible(n);
   });
 
-  /** 対象画面判定（アップロード/投稿フロー） */
   function isUploadFlow(){
     const u = new URL(location.href);
-    // 代表的なパス: /upload, /channel/<id>/videos/upload
     if (/\/upload/.test(u.pathname)) return true;
     // DOMの実体で判定
     const markers = [
-      'ytcp-uploads-dialog',           // 旧: アップロード開始ダイアログ
-      'ytcp-video-metadata-editor',    // 詳細入力画面
-      'ytcp-uploads-still-processing'  // 処理中画面
+      'ytcp-uploads-dialog',      
+      'ytcp-video-metadata-editor',
+      'ytcp-uploads-still-processing'  
     ];
     return deepQueryAll(markers.join(',')).some(isVisible);
   }
 
-  /** 「次へ」/「公開」近辺のホストボタンを探す */
   function findUploadHostButton(){
-    // よくあるID
     const byId = deepQueryAll('ytcp-button#next-button, ytcp-button#done-button, ytcp-button#save-button').find(isVisible);
     if (byId) return byId;
 
-    // ラベルで探索（多言語対応・必要に応じて追加）
     const labels = ['次へ','Next','公開','Publish','保存','Save','保存して公開','Save and publish'];
     const cand = byText(deepQueryAll('ytcp-button,button'), labels);
     return cand ? (cand.closest?.('ytcp-button') || cand) : null;
   }
 
-  /** .wfpファイルからタイムスタンプ・ファイル名抽出 */
   async function extractWfpTimestampsAndNames(file) {
     try {
       const arrayBuffer = await file.arrayBuffer();
       const zip = await JSZip.loadAsync(arrayBuffer);
-      // timeline.wesprojをサブフォルダも含めて探す
       let wesprojFile = null;
       zip.forEach((relativePath, zipEntry) => {
         if (relativePath.endsWith('timeline.wesproj')) {
@@ -122,20 +114,16 @@
     }
   }
 
-    /** ファイルパスから拡張子なしのベース名を取得 */
   function getBaseNameWithoutExt(path) {
     const base = path.split('/').pop().split('\\').pop();
     return base.replace(/\.[^/.]+$/, '');
   }
 
-  /** wfp抽出結果を説明欄用に整形 */
   function formatWfpResultLines(data) {
     return data.map(x => `${formatNanoToTime(x.tlBegin)} ${getBaseNameWithoutExt(x.filename)}`).join('\n');
   }
 
-  /** 説明欄にテキストを書き込む */
   function writeDescription(descInput, lines) {
-  // 既存の説明欄内容を保持し、末尾に追記
   const current = descInput.innerText.trim();
   const newText = current ? (current + '\n' + lines) : lines;
   descInput.innerText = newText;
@@ -234,7 +222,6 @@
     for (const k in obj) extractKeys(obj[k], result);
   }
 
-  /** トースト */
   function toast(msg){
     let el = document.getElementById('ysu-toast');
     if(!el){
@@ -253,14 +240,12 @@
     toast._t = setTimeout(()=>{ el.style.opacity = '0'; }, 1500);
   }
 
-  /** スタイル注入 */
   function addStyle(css){
     const s = document.createElement('style');
     s.textContent = css;
     (document.head || document.documentElement).appendChild(s);
   }
 
-  /** 固定ボタン設置（フォールバック） */
   function ensureFixedButton(show = true){
     let btn = document.getElementById(FIXED_BTN_ID);
     if(!btn){
@@ -273,7 +258,6 @@
     return btn;
   }
 
-  /** インライン設置（見つからないときは固定にフォールバック） */
   function ensureInlineButton(){
     if(!isUploadFlow()){
       ensureFixedButton(false);
@@ -282,7 +266,6 @@
       return false;
     }
 
-    // 既にある場合は表示だけ整える
     const existing = document.getElementById(INLINE_BTN_ID);
     if (existing){
       existing.style.display = 'inline-flex';
@@ -296,7 +279,6 @@
       return false;
     }
 
-    // インラインボタン作成
     const btn = document.createElement('button');
     btn.id = INLINE_BTN_ID; btn.type = 'button'; btn.textContent = 'Filmoraファイル選択';
     btn.addEventListener('click', onCustomButtonClick);
@@ -311,7 +293,6 @@
     }
   }
 
-  /** 画面変化に追随（StudioはSPA） */
   function heal(){
     if(!isUploadFlow()){
       ensureFixedButton(false);
@@ -322,18 +303,14 @@
     ensureInlineButton();
   }
 
-  /** ファイル読み込みボタン設置と処理 */
   function init(){
-    // 初期設置（失敗時は必ず固定ボタン表示）
     if (!ensureInlineButton()) {
       ensureFixedButton(true);
     }
 
-    // DOM変化監視
     const mo = new MutationObserver(()=> heal());
     mo.observe(document.documentElement, {childList:true, subtree:true});
 
-    // YouTube独自イベント/URL変化に追随
     const fire = ()=> window.dispatchEvent(new Event('ysu:url-changed'));
     const debounce = (fn, ms=120)=>{ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; };
     const onUrlMaybeChanged = debounce(()=> heal(), 80);
@@ -348,7 +325,7 @@
     document.addEventListener('yt-page-data-updated', fire);
     window.addEventListener('hashchange', fire);
     document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) fire(); });
-    setInterval(()=> fire(), 1200); // 保険の軽ポーリング
+    setInterval(()=> fire(), 1200); 
     window.addEventListener('ysu:url-changed', onUrlMaybeChanged);
   }
 
