@@ -2,6 +2,7 @@
 // @name         YouTube Studio Filmora Tracklist Maker
 // @namespace    niaproject
 // @version      1.0.0
+// @author       Nia
 // @description  Filmora (.wfp) から音声クリップの開始時刻とファイル名を抽出し、YouTube Studio の説明欄へ自動整形して挿入します。
 // @match        https://studio.youtube.com/*
 // @run-at       document-idle
